@@ -173,7 +173,7 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 
 		if (strcmp(value, "FAT") == 0) data->os = 0;
 		else if (strcmp(value, "Amiga") == 0) data->os = 1;
-		else if (strcmp(value, "VMS") == 0 || strcmp(value, "OpenVMS")) data->os = 2;
+		else if (strcmp(value, "VMS") == 0 || strcmp(value, "OpenVMS") == 0) data->os = 2;
 		else if (strcmp(value, "Unix") == 0) data->os = 3;
 		else if (strcmp(value, "VM") == 0 || strcmp(value, "VM/CMS") == 0) data->os = 4;
 		else if (strcmp(value, "Atari TOS") == 0) data->os = 5;
