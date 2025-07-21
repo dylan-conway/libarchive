@@ -111,7 +111,32 @@ seek_file(int fd, int64_t offset, int whence)
 	return (SetFilePointerEx((HANDLE)_get_osfhandle(fd),
 		distance, NULL, FILE_BEGIN) ? 1 : -1);
 }
-#define	open _open
+
+static int
+_open_wrap_sopen(char const *const path, int const oflag, ...)
+{
+	va_list ap;
+	int r, pmode;
+
+	pmode = 0;
+	if (oflag & _O_CREAT)
+	{
+		va_start(ap, oflag);
+		pmode = va_arg(ap, int);
+		va_end(ap);
+	}
+
+	_sopen_s(&r, path, oflag, _SH_DENYNO, pmode & 0600);
+	if (r < 0)
+	{
+		/* _sopen_s populates errno */
+		return -1;
+	}
+
+	return r;
+}
+
+#define	open _open_wrap_sopen
 #define	close _close
 #define	read _read
 #ifdef lseek
@@ -682,6 +707,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		if ((bsdtar->flags & OPTFLAG_INTERACTIVE) &&
 		    !yes("copy '%s'", archive_entry_pathname(in_entry)))
 			continue;
+		edit_mtime(bsdtar, in_entry);
 		if (bsdtar->verbose > 1) {
 			safe_fprintf(stderr, "a ");
 			list_item_verbose(bsdtar, stderr, in_entry);
@@ -907,6 +933,9 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 */
 		if (edit_pathname(bsdtar, entry))
 			continue;
+
+		/* Rewrite the mtime. */
+		edit_mtime(bsdtar, entry);
 
 		/* Display entry as we process it. */
 		if (bsdtar->verbose > 1) {

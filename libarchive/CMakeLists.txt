@@ -38,8 +38,6 @@ SET(libarchive_SOURCES
   archive_entry_stat.c
   archive_entry_strmode.c
   archive_entry_xattr.c
-  archive_getdate.c
-  archive_getdate.h
   archive_hmac.c
   archive_hmac_private.h
   archive_match.c
@@ -49,6 +47,7 @@ SET(libarchive_SOURCES
   archive_options_private.h
   archive_pack_dev.h
   archive_pack_dev.c
+  archive_parse_date.c
   archive_pathmatch.c
   archive_pathmatch.h
   archive_platform.h
@@ -117,6 +116,8 @@ SET(libarchive_SOURCES
   archive_string.h
   archive_string_composition.h
   archive_string_sprintf.c
+  archive_time.c
+  archive_time_private.h
   archive_util.c
   archive_version_details.c
   archive_virtual.c
@@ -247,11 +248,14 @@ IF(BUILD_SHARED_LIBS)
   ADD_LIBRARY(archive SHARED ${libarchive_SOURCES} ${include_HEADERS})
   TARGET_INCLUDE_DIRECTORIES(archive PUBLIC .)
   TARGET_LINK_LIBRARIES(archive ${ADDITIONAL_LIBS})
-  SET_TARGET_PROPERTIES(archive PROPERTIES 
+  SET_TARGET_PROPERTIES(archive PROPERTIES
                         VERSION ${SOVERSION_FULL}
                         SOVERSION ${SOVERSION}
                         MACHO_COMPATIBILITY_VERSION ${MACHO_COMPATIBILITY_VERSION}
                         MACHO_CURRENT_VERSION ${MACHO_CURRENT_VERSION})
+  IF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
+    SET_PROPERTY(TARGET archive PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  ENDIF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
 ENDIF(BUILD_SHARED_LIBS)
 
 # archive_static is a static library
@@ -260,6 +264,9 @@ TARGET_INCLUDE_DIRECTORIES(archive_static PUBLIC .)
 TARGET_LINK_LIBRARIES(archive_static ${ADDITIONAL_LIBS})
 SET_TARGET_PROPERTIES(archive_static PROPERTIES COMPILE_DEFINITIONS
   LIBARCHIVE_STATIC)
+IF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
+  SET_PROPERTY(TARGET archive_static PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+ENDIF(WIN32 AND MSVC AND MSVC_USE_STATIC_CRT)
 # On Posix systems, libarchive.so and libarchive.a can co-exist.
 IF(NOT WIN32 OR CYGWIN OR NOT BUILD_SHARED_LIBS)
   SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive)
@@ -270,13 +277,13 @@ IF(ENABLE_INSTALL)
   IF(BUILD_SHARED_LIBS)
     INSTALL(TARGETS archive
             RUNTIME DESTINATION bin
-            LIBRARY DESTINATION lib
-            ARCHIVE DESTINATION lib)
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
   ENDIF(BUILD_SHARED_LIBS)
   INSTALL(TARGETS archive_static
           RUNTIME DESTINATION bin
-          LIBRARY DESTINATION lib
-          ARCHIVE DESTINATION lib)
+          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
   INSTALL_MAN(${libarchive_MANS})
   INSTALL(FILES ${include_HEADERS} DESTINATION include)
 ENDIF()

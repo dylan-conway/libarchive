@@ -34,7 +34,7 @@
  * assert that ARCHIVE_VERSION_NUMBER >= 2012108.
  */
 /* Note: Compiler will complain if this does not match archive_entry.h! */
-#define	ARCHIVE_VERSION_NUMBER 3008000
+#define	ARCHIVE_VERSION_NUMBER 3009000
 
 #include <sys/stat.h>
 #include <stddef.h>  /* for wchar_t */
@@ -66,12 +66,15 @@
 #define __LA_INT64_T_DEFINED
 # if defined(_WIN32) && !defined(__CYGWIN__) && !defined(__WATCOMC__)
 typedef __int64 la_int64_t;
+typedef unsigned __int64 la_uint64_t;
 # else
 # include <unistd.h>  /* ssize_t */
 #  if defined(_SCO_DS) || defined(__osf__)
 typedef long long la_int64_t;
+typedef unsigned long long la_uint64_t;
 #  else
 typedef int64_t la_int64_t;
+typedef uint64_t la_uint64_t;
 #  endif
 # endif
 #endif
@@ -101,7 +104,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for time_t */
 #define __LA_TIME_T time_t
 #else
-/* Use 64-bytes integer types for time_t */
+/* Use 64-bits integer types for time_t */
 #define __LA_TIME_T la_int64_t
 #endif
 
@@ -109,7 +112,7 @@ typedef ssize_t la_ssize_t;
 /* Use the platform types for dev_t */
 #define __LA_DEV_T dev_t
 #else
-/* Use 64-bytes integer types for dev_t */
+/* Use 64-bits integer types for dev_t */
 #define __LA_DEV_T la_int64_t
 #endif
 
@@ -174,7 +177,7 @@ __LA_DECL int		archive_version_number(void);
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_ONLY_STRING "3.8.0dev"
+#define	ARCHIVE_VERSION_ONLY_STRING "3.9.0dev"
 #define	ARCHIVE_VERSION_STRING "libarchive " ARCHIVE_VERSION_ONLY_STRING
 __LA_DECL const char *	archive_version_string(void);
 
@@ -197,6 +200,23 @@ __LA_DECL const char *  archive_liblzma_version(void);
 __LA_DECL const char *  archive_bzlib_version(void);
 __LA_DECL const char *  archive_liblz4_version(void);
 __LA_DECL const char *  archive_libzstd_version(void);
+__LA_DECL const char *  archive_liblzo2_version(void);
+__LA_DECL const char *  archive_libexpat_version(void);
+__LA_DECL const char *  archive_libbsdxml_version(void);
+__LA_DECL const char *  archive_libxml2_version(void);
+__LA_DECL const char *  archive_mbedtls_version(void);
+__LA_DECL const char *  archive_nettle_version(void);
+__LA_DECL const char *  archive_openssl_version(void);
+__LA_DECL const char *  archive_libmd_version(void);
+__LA_DECL const char *  archive_commoncrypto_version(void);
+__LA_DECL const char *  archive_cng_version(void);
+__LA_DECL const char *  archive_wincrypt_version(void);
+__LA_DECL const char *  archive_librichacl_version(void);
+__LA_DECL const char *  archive_libacl_version(void);
+__LA_DECL const char *  archive_libattr_version(void);
+__LA_DECL const char *  archive_libiconv_version(void);
+__LA_DECL const char *  archive_libpcre_version(void);
+__LA_DECL const char *  archive_libpcre2_version(void);
 
 /* Declare our basic types. */
 struct archive;
@@ -468,6 +488,8 @@ __LA_DECL int archive_read_support_format_by_code(struct archive *, int);
 __LA_DECL int archive_read_support_format_cab(struct archive *);
 __LA_DECL int archive_read_support_format_cpio(struct archive *);
 __LA_DECL int archive_read_support_format_empty(struct archive *);
+/* archive_read_support_format_gnutar() is an alias for historical reasons
+ * of archive_read_support_format_tar(). */
 __LA_DECL int archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int archive_read_support_format_lha(struct archive *);
@@ -1106,6 +1128,10 @@ __LA_DECL int		 archive_compression(struct archive *)
 				__LA_DEPRECATED;
 #endif
 
+/* Parses a date string relative to the current time.
+ * NOTE: This is not intended for general date parsing, and the resulting timestamp should only be used for libarchive. */
+__LA_DECL time_t	archive_parse_date(time_t now, const char *datestr);
+
 __LA_DECL int		 archive_errno(struct archive *);
 __LA_DECL const char	*archive_error_string(struct archive *);
 __LA_DECL const char	*archive_format_name(struct archive *);
@@ -1224,8 +1250,10 @@ __LA_DECL int	archive_match_include_gname_w(struct archive *,
 		    const wchar_t *);
 
 /* Utility functions */
+#if ARCHIVE_VERSION_NUMBER < 4000000
 /* Convenience function to sort a NULL terminated list of strings */
 __LA_DECL int archive_utility_string_sort(char **);
+#endif
 
 #ifdef __cplusplus
 }

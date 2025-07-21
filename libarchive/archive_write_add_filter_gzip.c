@@ -59,6 +59,7 @@ struct private_data {
 	int		 compression_level;
 	int		 timestamp;
 	unsigned char 	os;
+	char	*original_filename;
 #ifdef HAVE_ZLIB_H
 	z_stream	 stream;
 	int64_t		 total_in;
@@ -114,6 +115,8 @@ archive_write_add_filter_gzip(struct archive *_a)
 	f->free = &archive_compressor_gzip_free;
 	f->code = ARCHIVE_FILTER_GZIP;
 	f->name = "gzip";
+
+	data->original_filename = NULL;
 #ifdef HAVE_ZLIB_H
 	data->compression_level = Z_DEFAULT_COMPRESSION;
 	return (ARCHIVE_OK);
@@ -141,6 +144,7 @@ archive_compressor_gzip_free(struct archive_write_filter *f)
 #else
 	__archive_write_program_free(data->pdata);
 #endif
+	free((void*)data->original_filename);
 	free(data);
 	f->data = NULL;
 	return (ARCHIVE_OK);
@@ -164,6 +168,13 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 	}
 	if (strcmp(key, "timestamp") == 0) {
 		data->timestamp = (value == NULL)?-1:1;
+		return (ARCHIVE_OK);
+	}
+	if (strcmp(key, "original-filename") == 0) {
+		free((void*)data->original_filename);
+		data->original_filename = NULL;
+		if (value)
+			data->original_filename = strdup(value);
 		return (ARCHIVE_OK);
 	}
 
@@ -235,7 +246,7 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[0] = 0x1f; /* GZip signature bytes */
 	data->compressed[1] = 0x8b;
 	data->compressed[2] = 0x08; /* "Deflate" compression */
-	data->compressed[3] = 0; /* No options */
+	data->compressed[3] = data->original_filename == NULL ? 0 : 0x8;
 	if (data->timestamp >= 0) {
 		time_t t = time(NULL);
 		data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
@@ -253,6 +264,12 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[9] = data->os;
 	data->stream.next_out += 10;
 	data->stream.avail_out -= 10;
+
+	if (data->original_filename != NULL) {
+		strcpy((char*)data->compressed + 10, data->original_filename);
+		data->stream.next_out += strlen(data->original_filename) + 1;
+		data->stream.avail_out -= strlen(data->original_filename) + 1;
+	}
 
 	f->write = archive_compressor_gzip_write;
 

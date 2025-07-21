@@ -276,7 +276,7 @@ tree_dir_next_posix(struct tree *t);
 #endif
 
 /* Initiate/terminate a tree traversal. */
-static struct tree *tree_open(const char *, int, int);
+static struct tree *tree_open(const char *, char, int);
 static struct tree *tree_reopen(struct tree *, const char *, int);
 static void tree_close(struct tree *);
 static void tree_free(struct tree *);
@@ -514,7 +514,7 @@ _archive_read_close(struct archive *_a)
 
 static void
 setup_symlink_mode(struct archive_read_disk *a, char symlink_mode,
-    int follow_symlinks)
+    char follow_symlinks)
 {
 	a->symlink_mode = symlink_mode;
 	a->follow_symlinks = follow_symlinks;
@@ -778,7 +778,8 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	 */
 	if (t->current_sparse->offset > t->entry_total) {
 		if (lseek(t->entry_fd,
-		    (off_t)t->current_sparse->offset, SEEK_SET) < 0) {
+		    (off_t)t->current_sparse->offset, SEEK_SET) !=
+		    t->current_sparse->offset) {
 			archive_set_error(&a->archive, errno, "Seek error");
 			r = ARCHIVE_FATAL;
 			a->archive.state = ARCHIVE_STATE_FATAL;
@@ -2111,8 +2112,11 @@ tree_dup(int fd)
 	}
 #endif /* F_DUPFD_CLOEXEC */
 	new_fd = dup(fd);
-	__archive_ensure_cloexec_flag(new_fd);
-	return (new_fd);
+	if (new_fd != -1) {
+		__archive_ensure_cloexec_flag(new_fd);
+		return (new_fd);
+	}
+	return (-1);
 }
 
 /*
@@ -2180,7 +2184,7 @@ tree_append(struct tree *t, const char *name, size_t name_length)
  * Open a directory tree for traversal.
  */
 static struct tree *
-tree_open(const char *path, int symlink_mode, int restore_time)
+tree_open(const char *path, char symlink_mode, int restore_time)
 {
 	struct tree *t;
 
@@ -2234,11 +2238,16 @@ tree_reopen(struct tree *t, const char *path, int restore_time)
 	 * so try again for execute. The consequences of not opening this are
 	 * unhelpful and unnecessary errors later.
 	 */
-	if (t->initial_dir_fd < 0)
+	if (t->initial_dir_fd < 0) {
 		t->initial_dir_fd = open(".", o_flag | O_CLOEXEC);
+		if (t->initial_dir_fd < 0)
+			return NULL;
+	}
 #endif
 	__archive_ensure_cloexec_flag(t->initial_dir_fd);
 	t->working_dir_fd = tree_dup(t->initial_dir_fd);
+	if (t->working_dir_fd < 0)
+		return NULL;
 	return (t);
 }
 
@@ -2453,7 +2462,9 @@ tree_dir_next_posix(struct tree *t)
 #endif
 
 #if defined(HAVE_FDOPENDIR)
-		t->d = fdopendir(tree_dup(t->working_dir_fd));
+		int fd = tree_dup(t->working_dir_fd);
+		if (fd != -1)
+			t->d = fdopendir(fd);
 #else /* HAVE_FDOPENDIR */
 		if (tree_enter_working_dir(t) == 0) {
 			t->d = opendir(".");
