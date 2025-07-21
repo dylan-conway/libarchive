@@ -65,7 +65,7 @@ struct private_data {
 	int64_t		 total_in;
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
-	unsigned long	 crc;
+	uint32_t	 crc;
 #else
 	struct archive_write_program_data *pdata;
 #endif
@@ -115,6 +115,8 @@ archive_write_add_filter_gzip(struct archive *_a)
 	f->free = &archive_compressor_gzip_free;
 	f->code = ARCHIVE_FILTER_GZIP;
 	f->name = "gzip";
+
+	data->os = 3; /* Default to Unix */
 
 	data->original_filename = NULL;
 #ifdef HAVE_ZLIB_H
